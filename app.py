@@ -6,6 +6,7 @@ import numpy as np
 import joblib
 import requests
 import ee
+import time
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -179,21 +180,50 @@ def get_soil_data(
         }
 
 
-        try:
+        for attempt in range(1, 4):
 
-            response = requests.get(
-                url,
-                params=params,
-                timeout=30
-            )
+            try:
 
-        except requests.RequestException as e:
+                response = requests.get(
+                    url,
+                    params=params,
+                    timeout=30,
+                    headers={
+                        "User-Agent": "Mozilla/5.0"
+                    }
+                )
 
-            print(
-                "SoilGrids request error:",
-                e
-            )
+                if response.status_code == 200:
+                    break
 
+                if response.status_code == 503:
+                    print(
+                        f"SoilGrids 503 on attempt {attempt}/3. Retrying..."
+                    )
+                    time.sleep(2 * attempt)
+                    continue
+
+                print(
+                    "SoilGrids HTTP:",
+                    response.status_code
+                )
+                return None
+
+            except requests.RequestException as e:
+
+                print(
+                    "SoilGrids request error:",
+                    e
+                )
+
+                if attempt < 3:
+                    time.sleep(2 * attempt)
+                    continue
+
+                return None
+
+
+        else:
             return None
 
 
